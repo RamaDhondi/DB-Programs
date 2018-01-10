@@ -1,0 +1,40 @@
+declare @requestId varchar(255)
+declare @reference varchar(255)
+declare @data XML
+DECLARE ReplaceBraces CURSOR 
+
+LOCAL SCROLL STATIC FOR
+
+ 
+select requestId,replace(replace(reference,'[',''),']','') as reference, cast(data as xml) as data
+from ProcessRequestDB.schema1.table1
+where ( reference like '%\[%'  ESCAPE '\' or  reference like '%]%') and requestId = 'RQ.9220f51e412c64e1:-591b260c:14dd3150ea5:-138d' 
+ 
+ 
+OPEN ReplaceBraces -- open the cursor
+
+--fetch first record
+FETCH NEXT FROM ReplaceBraces INTO @requestId,@reference,@data
+
+WHILE @@FETCH_STATUS = 0
+	BEGIN
+  
+select @data = data  from ProcessRequestDB.schema1.table1 
+where requestid=@requestid
+set @data.modify('replace value of (/variable[@type=("Request")]/reference[@type=("Instructions")]/text())[1] with  sql:variable("@reference")')
+
+  
+update ProcessRequestDB.schema1.table1 set reference = @reference
+where requestId = @requestId
+ 
+ 
+Update ProcessRequestDB.schema1.table1 
+set data =cast(@data as nvarchar(MAX)) WHERE  requestId = @requestId 
+
+-- fetch next record	  
+    FETCH NEXT FROM ReplaceBraces INTO  @requestId,@reference,@data
+
+	END 
+  
+  CLOSE ReplaceBraces
+  DEALLOCATE ReplaceBraces
